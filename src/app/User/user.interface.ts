@@ -1,4 +1,3 @@
-// Base User Interface
 export type BaseUser = {
   id: string;
   name: string;
