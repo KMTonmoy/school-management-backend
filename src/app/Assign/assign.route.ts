@@ -4,10 +4,11 @@ import { authenticate, authorize } from "./auth.middleware";
 
 const router = express.Router();
 
+router.get("/assign/assignments", AssignController.getAssignments);
+
 router.post(
   "/assign",
-  authenticate,
-  authorize(["admin"]),
+
   AssignController.assignStudent
 );
 router.post(
@@ -30,8 +31,7 @@ router.get(
 );
 router.delete(
   "/assignment/:assignmentId",
-  authenticate,
-  authorize(["admin"]),
+
   AssignController.removeAssignment
 );
 

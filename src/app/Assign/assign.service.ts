@@ -1,22 +1,39 @@
 import { AssignmentModel } from "./assign.model";
 import { Types } from "mongoose";
-import { AssignStudentsDto, BulkAssignResponse } from "./assign.interface";
+
+interface FailedAssignment {
+  studentId: string;
+  reason: string;
+}
+
+interface BulkAssignResult {
+  success: boolean;
+  message: string;
+  assignedCount: number;
+  failedAssignments: FailedAssignment[];
+}
 
 export const AssignService = {
+  async getAllAssignments() {
+    return AssignmentModel.find()
+      .populate("teacher", "name email")
+      .populate("student", "name email")
+      .populate("assignedBy", "name email");
+  },
+
   async assignStudent(teacherId: string, studentId: string, adminId: string) {
-    const assignment = new AssignmentModel({
+    return new AssignmentModel({
       teacher: new Types.ObjectId(teacherId),
       student: new Types.ObjectId(studentId),
       assignedBy: new Types.ObjectId(adminId),
-    });
-    return await assignment.save();
+    }).save();
   },
 
   async bulkAssignStudents(
-    data: AssignStudentsDto,
+    data: { teacherId: string; studentIds: string[] },
     adminId: string
-  ): Promise<BulkAssignResponse> {
-    const results: BulkAssignResponse = {
+  ): Promise<BulkAssignResult> {
+    const results: BulkAssignResult = {
       success: true,
       message: "Bulk assignment completed",
       assignedCount: 0,
@@ -44,18 +61,20 @@ export const AssignService = {
   },
 
   async getTeacherStudents(teacherId: string) {
-    return await AssignmentModel.find({ teacher: teacherId })
-      .populate("student", "name email")
-      .exec();
+    return AssignmentModel.find({ teacher: teacherId }).populate(
+      "student",
+      "name email"
+    );
   },
 
   async getStudentTeachers(studentId: string) {
-    return await AssignmentModel.find({ student: studentId })
-      .populate("teacher", "name email")
-      .exec();
+    return AssignmentModel.find({ student: studentId }).populate(
+      "teacher",
+      "name email"
+    );
   },
 
   async removeAssignment(assignmentId: string) {
-    return await AssignmentModel.findByIdAndDelete(assignmentId);
+    return AssignmentModel.findByIdAndDelete(assignmentId);
   },
 };
