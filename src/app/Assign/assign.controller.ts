@@ -35,6 +35,14 @@ export const AssignController = {
     res.status(200).json(students);
   },
 
+  async getAssignedStudents(req: Request, res: Response) {
+    if (!req.user || req.user.role !== "teacher") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    const students = await AssignService.getTeacherStudents(req.user.id);
+    res.status(200).json(students);
+  },
+
   async getStudentTeachers(req: Request, res: Response) {
     if (!req.user || (req.user.role !== "admin" && req.user.role !== "student")) {
       return res.status(403).json({ message: "Access denied" });
@@ -47,7 +55,7 @@ export const AssignController = {
   },
 
   async removeAssignment(req: Request, res: Response) {
-   
+    
     await AssignService.removeAssignment(req.params.assignmentId);
     res.status(204).send();
   }

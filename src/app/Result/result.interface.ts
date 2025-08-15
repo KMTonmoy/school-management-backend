@@ -13,3 +13,7 @@ export interface CreateResultDto {
   subject: string;
   marks: number;
 }
+
+export interface BulkResultDto extends CreateResultDto {
+  teacherId: string;
+}

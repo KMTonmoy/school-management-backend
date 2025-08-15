@@ -9,4 +9,7 @@ const resultSchema = new Schema<IResult>({
   date: { type: Date, default: Date.now }
 });
 
+resultSchema.index({ student: 1, teacher: 1 });
+resultSchema.index({ teacher: 1 });
+
 export const ResultModel = model<IResult>("Result", resultSchema);

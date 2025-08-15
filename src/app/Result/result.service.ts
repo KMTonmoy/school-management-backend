@@ -1,10 +1,10 @@
 import { Types } from "mongoose";
-import { CreateResultDto } from "./result.interface";
+import { CreateResultDto, BulkResultDto } from "./result.interface";
 import { ResultModel } from "./result.model";
 import { AssignmentModel } from "../Assign/assign.model";
-
+ 
 export const ResultService = {
-  async createResult(data: { teacherId: string } & CreateResultDto) {
+  async createResult(data: BulkResultDto) {
     const isAssigned = await AssignmentModel.exists({
       teacher: new Types.ObjectId(data.teacherId),
       student: new Types.ObjectId(data.studentId),
@@ -12,36 +12,60 @@ export const ResultService = {
 
     if (!isAssigned) throw new Error("Not assigned to this student");
 
-    const result = new ResultModel({
-      student: new Types.ObjectId(data.studentId),
-      teacher: new Types.ObjectId(data.teacherId),
+    return await new ResultModel({
+      student: data.studentId,
+      teacher: data.teacherId,
       subject: data.subject,
       marks: data.marks,
-    });
-
-    return await result.save();
+    }).save();
   },
 
   async getStudentResults(studentId: string) {
-    return await ResultModel.find({ student: new Types.ObjectId(studentId) })
-      .populate("teacher", "name email")
-      .exec();
+    return await ResultModel.find({ student: studentId }).populate(
+      "teacher",
+      "name email"
+    );
   },
 
   async getTeacherResults(teacherId: string) {
-    return await ResultModel.find({ teacher: new Types.ObjectId(teacherId) })
-      .populate("student", "name email")
-      .exec();
+    const assignments = await AssignmentModel.find({ teacher: teacherId });
+    const studentIds = assignments.map((a) => a.student);
+
+    return await ResultModel.find({
+      teacher: teacherId,
+      student: { $in: studentIds },
+    }).populate("student", "name email");
   },
 
   async updateResult(resultId: string, teacherId: string, marks: number) {
-    return await ResultModel.findOneAndUpdate(
-      {
-        _id: new Types.ObjectId(resultId),
-        teacher: new Types.ObjectId(teacherId),
-      },
+    const result = await ResultModel.findById(resultId);
+    if (!result) throw new Error("Result not found");
+
+    const isAssigned = await AssignmentModel.exists({
+      teacher: teacherId,
+      student: result.student,
+    });
+
+    if (!isAssigned) throw new Error("Not assigned to this student");
+
+    return await ResultModel.findByIdAndUpdate(
+      resultId,
       { marks },
       { new: true }
     ).populate("student", "name email");
+  },
+
+  async deleteResult(resultId: string, teacherId: string) {
+    const result = await ResultModel.findById(resultId);
+    if (!result) throw new Error("Result not found");
+
+    const isAssigned = await AssignmentModel.exists({
+      teacher: teacherId,
+      student: result.student,
+    });
+
+    if (!isAssigned) throw new Error("Not assigned to this student");
+
+    return await ResultModel.findByIdAndDelete(resultId);
   },
 };

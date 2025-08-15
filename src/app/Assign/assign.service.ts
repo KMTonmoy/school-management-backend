@@ -29,10 +29,7 @@ export const AssignService = {
     }).save();
   },
 
-  async bulkAssignStudents(
-    data: { teacherId: string; studentIds: string[] },
-    adminId: string
-  ): Promise<BulkAssignResult> {
+  async bulkAssignStudents(data: { teacherId: string; studentIds: string[] }, adminId: string): Promise<BulkAssignResult> {
     const results: BulkAssignResult = {
       success: true,
       message: "Bulk assignment completed",
@@ -61,20 +58,16 @@ export const AssignService = {
   },
 
   async getTeacherStudents(teacherId: string) {
-    return AssignmentModel.find({ teacher: teacherId }).populate(
-      "student",
-      "name email"
-    );
+    return AssignmentModel.find({ teacher: teacherId })
+      .populate("student", "name email");
   },
 
   async getStudentTeachers(studentId: string) {
-    return AssignmentModel.find({ student: studentId }).populate(
-      "teacher",
-      "name email"
-    );
+    return AssignmentModel.find({ student: studentId })
+      .populate("teacher", "name email");
   },
 
   async removeAssignment(assignmentId: string) {
     return AssignmentModel.findByIdAndDelete(assignmentId);
-  },
+  }
 };
