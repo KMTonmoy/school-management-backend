@@ -1,9 +1,9 @@
-import { AdminModel, TeacherModel, StudentModel } from './user.model';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { Document, Types } from 'mongoose';
+import { AdminModel, TeacherModel, StudentModel } from "./user.model";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { Document, Types } from "mongoose";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret';
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 const SALT_ROUNDS = 10;
 
 // Define base user interface with all common properties
@@ -12,7 +12,7 @@ interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'admin' | 'teacher' | 'student';
+  role: "admin" | "teacher" | "student";
   isBlocked: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -25,7 +25,7 @@ interface AuthResponse {
   statusCode: number;
   data: {
     token: string;
-    role: 'admin' | 'teacher' | 'student';
+    role: "admin" | "teacher" | "student";
     userId: string;
   };
 }
@@ -35,47 +35,58 @@ const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, SALT_ROUNDS);
 };
 
-const comparePasswords = async (inputPassword: string, hashedPassword: string): Promise<boolean> => {
+const comparePasswords = async (
+  inputPassword: string,
+  hashedPassword: string
+): Promise<boolean> => {
   return await bcrypt.compare(inputPassword, hashedPassword);
 };
 
-const generateToken = (userId: Types.ObjectId, role: 'admin' | 'teacher' | 'student'): string => {
-  return jwt.sign(
-    { userId: userId.toString(), role },
-    JWT_SECRET,
-    { expiresIn: '1h' }
-  );
+const generateToken = (
+  userId: Types.ObjectId,
+  role: "admin" | "teacher" | "student"
+): string => {
+  return jwt.sign({ userId: userId.toString(), role }, JWT_SECRET, {
+    expiresIn: "1h",
+  });
 };
 
 // Authentication Service
-const loginUser = async (email: string, password: string): Promise<AuthResponse> => {
+const loginUser = async (
+  email: string,
+  password: string
+): Promise<AuthResponse> => {
   // Check in all user collections with proper typing
-  const admin = await AdminModel.findOne({ email }).select('+password').exec();
-  const teacher = await TeacherModel.findOne({ email }).select('+password').exec();
-  const student = await StudentModel.findOne({ email }).select('+password').exec();
+  const admin = await AdminModel.findOne({ email }).select("+password").exec();
+  const teacher = await TeacherModel.findOne({ email })
+    .select("+password")
+    .exec();
+  const student = await StudentModel.findOne({ email })
+    .select("+password")
+    .exec();
 
   const user = (admin || teacher || student) as IUser | null;
 
   if (!user) {
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 
   const isMatch = await comparePasswords(password, user.password);
   if (!isMatch) {
-    throw new Error('Invalid credentials');
+    throw new Error("Invalid credentials");
   }
 
   const token = generateToken(user._id, user.role);
 
   return {
     success: true,
-    message: 'Login successful',
+    message: "Login successful",
     statusCode: 200,
     data: {
       token,
       role: user.role,
-      userId: user._id.toString()
-    }
+      userId: user._id.toString(),
+    },
   };
 };
 
@@ -86,8 +97,8 @@ const createAdmin = async (name: string, email: string, password: string) => {
     name,
     email,
     password: hashedPassword,
-    role: 'admin',
-    isBlocked: false
+    role: "admin",
+    isBlocked: false,
   });
   return await admin.save();
 };
@@ -105,10 +116,10 @@ const createTeacher = async (
     name,
     email,
     password: hashedPassword,
-    role: 'teacher',
+    role: "teacher",
     subjects,
     qualification,
-    isBlocked: false
+    isBlocked: false,
   });
   return await teacher.save();
 };
@@ -132,11 +143,11 @@ const createStudent = async (
     name,
     email,
     password: hashedPassword,
-    role: 'student',
+    role: "student",
     class: classId,
     rollNumber,
     guardian,
-    isBlocked: false
+    isBlocked: false,
   });
   return await student.save();
 };
@@ -154,6 +165,27 @@ const getAllStudents = async () => {
   return await StudentModel.find().exec();
 };
 
+const getAllUsers = async () => {
+  return await AdminModel.find()
+    .exec()
+    .then((admins) =>
+      TeacherModel.find()
+        .exec()
+        .then((teachers) =>
+          StudentModel.find()
+            .exec()
+            .then((students) => [...admins, ...teachers, ...students])
+        )
+    );
+};
+
+const getUserByEmail = async (email: string) => {
+  const admin = await AdminModel.findOne({ email }).exec();
+  const teacher = await TeacherModel.findOne({ email }).exec();
+  const student = await StudentModel.findOne({ email }).exec();
+  return admin || teacher || student;
+};
+
 export const UserServices = {
   createAdmin,
   createTeacher,
@@ -164,5 +196,7 @@ export const UserServices = {
   getAllStudents,
   hashPassword,
   comparePasswords,
-  generateToken
+  generateToken,
+  getAllUsers,
+  getUserByEmail,
 };

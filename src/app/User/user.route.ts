@@ -56,8 +56,8 @@ router.post(
   "/auth/register/admin",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const admin = await userControllers.createAdmin(req.body);
-      res.status(201).json(admin);
+      const result = await userControllers.createAdmin(req.body);
+      res.status(201).json(result);
     } catch (err) {
       next(err);
     }
@@ -68,8 +68,8 @@ router.post(
   "/auth/register/teacher",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const teacher = await userControllers.createTeacher(req.body);
-      res.status(201).json(teacher);
+      const result = await userControllers.createTeacher(req.body);
+      res.status(201).json(result);
     } catch (err) {
       next(err);
     }
@@ -80,8 +80,8 @@ router.post(
   "/auth/register/student",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const student = await userControllers.createStudent(req.body);
-      res.status(201).json(student);
+      const result = await userControllers.createStudent(req.body);
+      res.status(201).json(result);
     } catch (err) {
       next(err);
     }
@@ -104,13 +104,28 @@ router.post(
 );
 
 router.get(
-  "/admin/users",
+  "/users",
   authenticate,
   authorize(["admin"]),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const users = await userControllers.getAllUsers();
       res.status(200).json(users);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.get(
+  "/users/:email",
+  authenticate,
+  authorize(["admin"]),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await userControllers.getUserByEmail(req.params.email);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.status(200).json(user);
     } catch (err) {
       next(err);
     }
@@ -148,7 +163,7 @@ router.patch(
 router.get(
   "/teachers",
   authenticate,
-  authorize(["admin", "teacher"]),
+  authorize(["admin"]),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const teachers = await userControllers.getTeachers();

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-interface IUser extends Document {
+interface IUserBase extends Document {
   name: string;
   email: string;
   password: string;
@@ -12,12 +12,17 @@ interface IUser extends Document {
   isPasswordMatch(password: string): Promise<boolean>;
 }
 
-interface ITeacher extends IUser {
-  subjects: string[];
-  qualification: string;
+interface IAdmin extends IUserBase {
+  accessLevel: "full" | "limited";
 }
 
-interface IStudent extends IUser {
+interface ITeacher extends IUserBase {
+  subjects: string[];
+  qualification: string;
+  joiningDate: Date;
+}
+
+interface IStudent extends IUserBase {
   class: string;
   rollNumber: string;
   guardian: {
@@ -26,9 +31,10 @@ interface IStudent extends IUser {
     primaryContact: string;
     secondaryContact?: string;
   };
+  address?: string;
 }
 
-type UserDocument = IUser | ITeacher | IStudent;
+type UserDocument = IAdmin | ITeacher | IStudent;
 
 const guardianSchema = new Schema({
   name: { type: String, required: true },
@@ -37,7 +43,7 @@ const guardianSchema = new Schema({
   secondaryContact: { type: String },
 });
 
-const userSchema: Schema<UserDocument> = new Schema(
+const userSchema: Schema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -48,36 +54,6 @@ const userSchema: Schema<UserDocument> = new Schema(
       required: true,
     },
     isBlocked: { type: Boolean, default: false },
-    subjects: {
-      type: [String],
-      required: function () {
-        return this.role === "teacher";
-      },
-    },
-    qualification: {
-      type: String,
-      required: function () {
-        return this.role === "teacher";
-      },
-    },
-    class: {
-      type: String,
-      required: function () {
-        return this.role === "student";
-      },
-    },
-    rollNumber: {
-      type: String,
-      required: function () {
-        return this.role === "student";
-      },
-    },
-    guardian: {
-      type: guardianSchema,
-      required: function () {
-        return this.role === "student";
-      },
-    },
   },
   {
     timestamps: true,
@@ -85,40 +61,48 @@ const userSchema: Schema<UserDocument> = new Schema(
   }
 );
 
-userSchema.pre<UserDocument>("save", async function (next) {
-  if (this.isModified("password")) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-  }
-  next();
-});
-
-userSchema.methods.isPasswordMatch = async function (
-  password: string
-): Promise<boolean> {
+userSchema.methods.isPasswordMatch = async function (password: string) {
   return bcrypt.compare(password, this.password);
 };
 
-const UserModel: Model<UserDocument> = mongoose.model<UserDocument>(
-  "User",
-  userSchema
+userSchema.pre<IUserBase>("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err as Error);
+  }
+});
+
+const UserModel = mongoose.model<UserDocument>("User", userSchema);
+
+const AdminModel = UserModel.discriminator<IAdmin>(
+  "admin",
+  new Schema({
+    accessLevel: { type: String, enum: ["full", "limited"], default: "full" },
+  })
 );
 
-const AdminModel = UserModel.discriminator("admin", new Schema({}));
-const TeacherModel = UserModel.discriminator(
+const TeacherModel = UserModel.discriminator<ITeacher>(
   "teacher",
   new Schema({
     subjects: { type: [String], required: true },
     qualification: { type: String, required: true },
+    joiningDate: { type: Date, default: Date.now },
   })
 );
-const StudentModel = UserModel.discriminator(
+
+const StudentModel = UserModel.discriminator<IStudent>(
   "student",
   new Schema({
     class: { type: String, required: true },
     rollNumber: { type: String, required: true },
     guardian: { type: guardianSchema, required: true },
+    address: { type: String },
   })
 );
 
 export { UserModel, AdminModel, TeacherModel, StudentModel };
+export type { IAdmin, ITeacher, IStudent, UserDocument };

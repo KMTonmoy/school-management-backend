@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import { UserModel } from "./user.model";
+import { UserModel, AdminModel, TeacherModel, StudentModel } from "./user.model";
+import type { UserDocument } from "./user.model";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 
@@ -9,8 +9,17 @@ async function createAdmin(data: {
   email: string;
   password: string;
 }) {
-  const admin = await UserModel.create({ ...data, role: "admin" });
-  return admin;
+  const admin = await AdminModel.create({
+    ...data,
+    role: "admin",
+    accessLevel: "full",
+  });
+  const token = jwt.sign(
+    { id: admin._id, email: admin.email, role: admin.role },
+    JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+  return { user: admin, token, role: admin.role };
 }
 
 async function createTeacher(data: {
@@ -18,31 +27,53 @@ async function createTeacher(data: {
   email: string;
   password: string;
   subjects: string[];
+  qualification: string;
 }) {
-  const teacher = await UserModel.create({ ...data, role: "teacher" });
-  return teacher;
+  const teacher = await TeacherModel.create({
+    ...data,
+    role: "teacher",
+  });
+  const token = jwt.sign(
+    { id: teacher._id, email: teacher.email, role: teacher.role },
+    JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+  return { user: teacher, token, role: teacher.role };
 }
 
 async function createStudent(data: {
   name: string;
   email: string;
   password: string;
-  guardian: { name: string; contact: string };
+  class: string;
+  rollNumber: string;
+  guardian: { name: string; relation: string; primaryContact: string };
 }) {
-  const student = await UserModel.create({ ...data, role: "student" });
-  return student;
+  const student = await StudentModel.create({
+    ...data,
+    role: "student",
+  });
+  const token = jwt.sign(
+    { id: student._id, email: student.email, role: student.role },
+    JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+  return { user: student, token, role: student.role };
 }
 
-async function getAllUsers(role?: "admin" | "teacher" | "student") {
-  const filter = role ? { role } : {};
-  return await UserModel.find(filter);
+async function getAllUsers() {
+  return await UserModel.find();
+}
+
+async function getUserByEmail(email: string) {
+  return await UserModel.findOne({ email });
 }
 
 async function loginUser(email: string, password: string) {
-  const user = await UserModel.findOne({ email });
+  const user = await UserModel.findOne({ email }).select("+password");
   if (!user) throw new Error("Invalid credentials");
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await (user as UserDocument).isPasswordMatch(password);
   if (!isMatch) throw new Error("Invalid credentials");
 
   const token = jwt.sign(
@@ -77,13 +108,13 @@ async function updatePassword(
   currentPassword: string,
   newPassword: string
 ) {
-  const user = await UserModel.findById(userId);
+  const user = await UserModel.findById(userId).select("+password");
   if (!user) throw new Error("User not found");
 
-  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  const isMatch = await (user as UserDocument).isPasswordMatch(currentPassword);
   if (!isMatch) throw new Error("Current password is incorrect");
 
-  user.password = await bcrypt.hash(newPassword, 10);
+  user.password = newPassword;
   await user.save();
   return { success: true };
 }
@@ -101,6 +132,7 @@ export const userControllers = {
   createTeacher,
   createStudent,
   getAllUsers,
+  getUserByEmail,
   loginUser,
   blockUser,
   unblockUser,
