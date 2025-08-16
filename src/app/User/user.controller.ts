@@ -55,7 +55,7 @@ async function createStudent(data: {
   const token = jwt.sign(
     { id: student._id, email: student.email, role: student.role },
     JWT_SECRET,
-    { expiresIn: "1h" }
+    { expiresIn: "7d" }
   );
   return { user: student, token, role: student.role };
 }

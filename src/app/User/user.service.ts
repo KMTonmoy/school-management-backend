@@ -47,7 +47,7 @@ const generateToken = (
   role: "admin" | "teacher" | "student"
 ): string => {
   return jwt.sign({ userId: userId.toString(), role }, JWT_SECRET, {
-    expiresIn: "1h",
+    expiresIn: "7d",
   });
 };
 
