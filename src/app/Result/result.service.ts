@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { CreateResultDto, BulkResultDto } from "./result.interface";
 import { ResultModel } from "./result.model";
 import { AssignmentModel } from "../Assign/assign.model";
- 
+
 export const ResultService = {
   async createResult(data: BulkResultDto) {
     if (data.teacherId !== "admin") {
@@ -10,7 +10,6 @@ export const ResultService = {
         teacher: new Types.ObjectId(data.teacherId),
         student: new Types.ObjectId(data.studentId),
       });
-
       if (!isAssigned) throw new Error("Not assigned to this student");
     }
 
@@ -23,16 +22,14 @@ export const ResultService = {
   },
 
   async getStudentResults(studentId: string) {
-    return await ResultModel.find({ student: studentId }).populate(
-      "teacher",
-      "name email"
-    );
+    return await ResultModel.find({ student: studentId })
+      .populate("teacher", "name email")
+      .populate("student", "name email");
   },
 
   async getTeacherResults(teacherId: string) {
-    if (teacherId === "admin") {
+    if (teacherId === "admin")
       return await ResultModel.find().populate("student", "name email");
-    }
 
     const assignments = await AssignmentModel.find({ teacher: teacherId });
     const studentIds = assignments.map((a) => a.student);
@@ -52,7 +49,6 @@ export const ResultService = {
         teacher: teacherId,
         student: result.student,
       });
-
       if (!isAssigned) throw new Error("Not assigned to this student");
     }
 
@@ -72,7 +68,6 @@ export const ResultService = {
         teacher: teacherId,
         student: result.student,
       });
-
       if (!isAssigned) throw new Error("Not assigned to this student");
     }
 
@@ -100,11 +95,9 @@ export const ResultService = {
     return await ResultModel.findByIdAndDelete(resultId);
   },
 
-
   async getAllResults() {
     return await ResultModel.find()
       .populate("student", "name email")
       .populate("teacher", "name email");
   },
-
 };

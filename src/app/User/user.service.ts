@@ -187,3 +187,13 @@ export const unblockUser = async (id: string) => {
   await user.save();
   return user;
 };
+
+export const getAllUsers = async () => {
+  const [admins, teachers, students] = await Promise.all([
+    AdminModel.find().exec(),
+    TeacherModel.find().exec(),
+    StudentModel.find().exec(),
+  ]);
+
+  return [...admins, ...teachers, ...students];
+};

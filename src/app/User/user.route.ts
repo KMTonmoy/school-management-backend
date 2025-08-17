@@ -14,8 +14,9 @@ import {
   deleteStudentById,
   blockUser,
   unblockUser,
+  getAllUsers,
 } from "./user.controller";
-
+ 
 const router = express.Router();
 
 router.post("/auth/register/admin", registerAdmin);
@@ -35,5 +36,6 @@ router.delete("/students/:id", deleteStudentById);
 
 router.put("/users/:id/block", blockUser);
 router.put("/users/:id/unblock", unblockUser);
+router.get("/users", getAllUsers);
 
 export const UserRoutes = router;

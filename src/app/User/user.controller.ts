@@ -5,7 +5,8 @@ import jwt from "jsonwebtoken";
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 
 const handleError = (error: unknown, res: Response, statusCode = 500) => {
-  const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+  const errorMessage =
+    error instanceof Error ? error.message : "An unknown error occurred";
   res.status(statusCode).json({ error: errorMessage });
 };
 
@@ -27,7 +28,13 @@ export const registerAdmin = async (req: Request, res: Response) => {
 export const registerTeacher = async (req: Request, res: Response) => {
   try {
     const { name, email, password, subjects, qualification } = req.body;
-    const teacher = await UserService.createTeacher(name, email, password, subjects, qualification);
+    const teacher = await UserService.createTeacher(
+      name,
+      email,
+      password,
+      subjects,
+      qualification
+    );
     const token = jwt.sign(
       { id: teacher._id, email: teacher.email, role: teacher.role },
       JWT_SECRET,
@@ -61,8 +68,22 @@ export const deleteTeacherById = async (req: Request, res: Response) => {
 
 export const registerStudent = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, class: classId, rollNumber, guardian } = req.body;
-    const student = await UserService.createStudent(name, email, password, classId, rollNumber, guardian);
+    const {
+      name,
+      email,
+      password,
+      class: classId,
+      rollNumber,
+      guardian,
+    } = req.body;
+    const student = await UserService.createStudent(
+      name,
+      email,
+      password,
+      classId,
+      rollNumber,
+      guardian
+    );
     const token = jwt.sign(
       { id: student._id, email: student.email, role: student.role },
       JWT_SECRET,
@@ -159,6 +180,15 @@ export const unblockUser = async (req: Request, res: Response) => {
     const { id } = req.params;
     const user = await UserService.unblockUser(id);
     res.status(200).json(user);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+export const getAllUsers = async (req: Request, res: Response) => {
+  try {
+    const users = await UserService.getAllUsers();
+    res.status(200).json(users);
   } catch (error) {
     handleError(error, res);
   }
