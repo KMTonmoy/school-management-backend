@@ -1,144 +1,165 @@
+import { Request, Response } from "express";
+import * as UserService from "./user.service";
 import jwt from "jsonwebtoken";
-import {
-  UserModel,
-  AdminModel,
-  TeacherModel,
-  StudentModel,
-} from "./user.model";
-import type { UserDocument } from "./user.model";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 
-async function createAdmin(data: {
-  name: string;
-  email: string;
-  password: string;
-}) {
-  const admin = await AdminModel.create({
-    ...data,
-    role: "admin",
-    accessLevel: "full",
-  });
-  const token = jwt.sign(
-    { id: admin._id, email: admin.email, role: admin.role },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-  return { user: admin, token, role: admin.role };
-}
+const handleError = (error: unknown, res: Response, statusCode = 500) => {
+  const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+  res.status(statusCode).json({ error: errorMessage });
+};
 
-async function createTeacher(data: {
-  name: string;
-  email: string;
-  password: string;
-  subjects: string[];
-  qualification: string;
-}) {
-  const teacher = await TeacherModel.create({ ...data, role: "teacher" });
-  const token = jwt.sign(
-    { id: teacher._id, email: teacher.email, role: teacher.role },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-  return { user: teacher, token, role: teacher.role };
-}
+export const registerAdmin = async (req: Request, res: Response) => {
+  try {
+    const { name, email, password } = req.body;
+    const admin = await UserService.createAdmin(name, email, password);
+    const token = jwt.sign(
+      { id: admin._id, email: admin.email, role: admin.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    res.status(201).json({ user: admin, token, role: admin.role });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function createStudent(data: {
-  name: string;
-  email: string;
-  password: string;
-  class: string;
-  rollNumber: string;
-  guardian: { name: string; relation: string; primaryContact: string };
-}) {
-  const student = await StudentModel.create({ ...data, role: "student" });
-  const token = jwt.sign(
-    { id: student._id, email: student.email, role: student.role },
-    JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-  return { user: student, token, role: student.role };
-}
+export const registerTeacher = async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, subjects, qualification } = req.body;
+    const teacher = await UserService.createTeacher(name, email, password, subjects, qualification);
+    const token = jwt.sign(
+      { id: teacher._id, email: teacher.email, role: teacher.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    res.status(201).json({ user: teacher, token, role: teacher.role });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function getAllUsers() {
-  return await UserModel.find();
-}
+export const updateTeacherById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updatedTeacher = await UserService.updateTeacher(id, req.body);
+    res.status(200).json(updatedTeacher);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function getUserByEmail(email: string) {
-  return await UserModel.findOne({ email });
-}
+export const deleteTeacherById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await UserService.deleteTeacher(id);
+    res.status(200).json({ message: "Teacher deleted successfully" });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function loginUser(email: string, password: string) {
-  const user = await UserModel.findOne({ email }).select("+password");
-  if (!user) throw new Error("Invalid credentials");
-  const isMatch = await (user as UserDocument).isPasswordMatch(password);
-  if (!isMatch) throw new Error("Invalid credentials");
-  const token = jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    JWT_SECRET,
-    { expiresIn: "1h" }
-  );
-  return { token, role: user.role };
-}
+export const registerStudent = async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, class: classId, rollNumber, guardian } = req.body;
+    const student = await UserService.createStudent(name, email, password, classId, rollNumber, guardian);
+    const token = jwt.sign(
+      { id: student._id, email: student.email, role: student.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    res.status(201).json({ user: student, token, role: student.role });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function blockUser(userId: string) {
-  const user = await UserModel.findById(userId);
-  if (!user) throw new Error("User not found");
-  user.isBlocked = true;
-  await user.save();
-  return { success: true };
-}
+export const updateStudentById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const updatedStudent = await UserService.updateStudent(id, req.body);
+    res.status(200).json(updatedStudent);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function unblockUser(userId: string) {
-  const user = await UserModel.findById(userId);
-  if (!user) throw new Error("User not found");
-  user.isBlocked = false;
-  await user.save();
-  return { success: true };
-}
+export const deleteStudentById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await UserService.deleteStudent(id);
+    res.status(200).json({ message: "Student deleted successfully" });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function updatePassword(
-  userId: string,
-  currentPassword: string,
-  newPassword: string
-) {
-  const user = await UserModel.findById(userId).select("+password");
-  if (!user) throw new Error("User not found");
-  const isMatch = await (user as UserDocument).isPasswordMatch(currentPassword);
-  if (!isMatch) throw new Error("Current password is incorrect");
-  user.password = newPassword;
-  await user.save();
-  return { success: true };
-}
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    const result = await UserService.loginUser(email, password);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(error, res, 401);
+  }
+};
 
-async function getTeachers() {
-  return await UserModel.find({ role: "teacher" });
-}
+export const getAllTeachers = async (req: Request, res: Response) => {
+  try {
+    const teachers = await UserService.getAllTeachers();
+    res.status(200).json(teachers);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function getStudents() {
-  return await UserModel.find({ role: "student" });
-}
+export const getAllStudents = async (req: Request, res: Response) => {
+  try {
+    const students = await UserService.getAllStudents();
+    res.status(200).json(students);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function getAllStudents() {
-  return await StudentModel.find();
-}
+export const getTeacherById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const teacher = await UserService.getTeacherById(id);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    res.status(200).json(teacher);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-async function getAllTeachers() {
-  return await TeacherModel.find();
-}
+export const getStudentById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const student = await UserService.getStudentById(id);
+    if (!student) return res.status(404).json({ message: "Student not found" });
+    res.status(200).json(student);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
 
-export const userControllers = {
-  createAdmin,
-  createTeacher,
-  createStudent,
-  getAllUsers,
-  getUserByEmail,
-  loginUser,
-  blockUser,
-  unblockUser,
-  updatePassword,
-  getTeachers,
-  getStudents,
-  getAllStudents,
-  getAllTeachers,
+export const blockUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await UserService.blockUser(id);
+    res.status(200).json(user);
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+export const unblockUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await UserService.unblockUser(id);
+    res.status(200).json(user);
+  } catch (error) {
+    handleError(error, res);
+  }
 };

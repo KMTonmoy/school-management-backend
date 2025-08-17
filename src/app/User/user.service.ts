@@ -1,4 +1,9 @@
-import { AdminModel, TeacherModel, StudentModel } from "./user.model";
+import {
+  AdminModel,
+  TeacherModel,
+  StudentModel,
+  UserModel,
+} from "./user.model";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { Document, Types } from "mongoose";
@@ -6,7 +11,6 @@ import { Document, Types } from "mongoose";
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret";
 const SALT_ROUNDS = 10;
 
-// Define base user interface with all common properties
 interface IUser extends Document {
   _id: Types.ObjectId;
   name: string;
@@ -19,18 +23,6 @@ interface IUser extends Document {
   comparePassword?(password: string): Promise<boolean>;
 }
 
-interface AuthResponse {
-  success: boolean;
-  message: string;
-  statusCode: number;
-  data: {
-    token: string;
-    role: "admin" | "teacher" | "student";
-    userId: string;
-  };
-}
-
-// Utility functions
 const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, SALT_ROUNDS);
 };
@@ -51,12 +43,7 @@ const generateToken = (
   });
 };
 
-// Authentication Service
-const loginUser = async (
-  email: string,
-  password: string
-): Promise<AuthResponse> => {
-  // Check in all user collections with proper typing
+export const loginUser = async (email: string, password: string) => {
   const admin = await AdminModel.findOne({ email }).select("+password").exec();
   const teacher = await TeacherModel.findOne({ email })
     .select("+password")
@@ -66,45 +53,31 @@ const loginUser = async (
     .exec();
 
   const user = (admin || teacher || student) as IUser | null;
-
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user) throw new Error("User not found");
 
   const isMatch = await comparePasswords(password, user.password);
-  if (!isMatch) {
-    throw new Error("Invalid credentials");
-  }
+  if (!isMatch) throw new Error("Invalid credentials");
 
   const token = generateToken(user._id, user.role);
-
-  return {
-    success: true,
-    message: "Login successful",
-    statusCode: 200,
-    data: {
-      token,
-      role: user.role,
-      userId: user._id.toString(),
-    },
-  };
+  return { token, role: user.role, userId: user._id.toString() };
 };
 
-// Admin Services
-const createAdmin = async (name: string, email: string, password: string) => {
+export const createAdmin = async (
+  name: string,
+  email: string,
+  password: string
+) => {
   const hashedPassword = await hashPassword(password);
-  const admin = new AdminModel({
+  return await AdminModel.create({
     name,
     email,
     password: hashedPassword,
     role: "admin",
-    isBlocked: false,
+    accessLevel: "full",
   });
-  return await admin.save();
 };
 
-// Teacher Services
-const createTeacher = async (
+export const createTeacher = async (
   name: string,
   email: string,
   password: string,
@@ -112,20 +85,32 @@ const createTeacher = async (
   qualification: string
 ) => {
   const hashedPassword = await hashPassword(password);
-  const teacher = new TeacherModel({
+  return await TeacherModel.create({
     name,
     email,
     password: hashedPassword,
     role: "teacher",
     subjects,
     qualification,
-    isBlocked: false,
   });
-  return await teacher.save();
 };
 
-// Student Services
-const createStudent = async (
+export const updateTeacher = async (
+  id: string,
+  updateData: {
+    name?: string;
+    subjects?: string[];
+    qualification?: string;
+  }
+) => {
+  return await TeacherModel.findByIdAndUpdate(id, updateData, { new: true });
+};
+
+export const deleteTeacher = async (id: string) => {
+  return await TeacherModel.findByIdAndDelete(id);
+};
+
+export const createStudent = async (
   name: string,
   email: string,
   password: string,
@@ -139,7 +124,7 @@ const createStudent = async (
   }
 ) => {
   const hashedPassword = await hashPassword(password);
-  const student = new StudentModel({
+  return await StudentModel.create({
     name,
     email,
     password: hashedPassword,
@@ -147,56 +132,58 @@ const createStudent = async (
     class: classId,
     rollNumber,
     guardian,
-    isBlocked: false,
   });
-  return await student.save();
 };
 
-// Data Retrieval Services
-const getAllAdmins = async () => {
-  return await AdminModel.find().exec();
+export const updateStudent = async (
+  id: string,
+  updateData: {
+    name?: string;
+    class?: string;
+    rollNumber?: string;
+    guardian?: {
+      name?: string;
+      relation?: string;
+      primaryContact?: string;
+      secondaryContact?: string;
+    };
+  }
+) => {
+  return await StudentModel.findByIdAndUpdate(id, updateData, { new: true });
 };
 
-const getAllTeachers = async () => {
-  return await TeacherModel.find().exec();
+export const deleteStudent = async (id: string) => {
+  return await StudentModel.findByIdAndDelete(id);
 };
 
-const getAllStudents = async () => {
-  return await StudentModel.find().exec();
+export const getAllTeachers = async () => {
+  return await TeacherModel.find();
 };
 
-const getAllUsers = async () => {
-  return await AdminModel.find()
-    .exec()
-    .then((admins) =>
-      TeacherModel.find()
-        .exec()
-        .then((teachers) =>
-          StudentModel.find()
-            .exec()
-            .then((students) => [...admins, ...teachers, ...students])
-        )
-    );
+export const getAllStudents = async () => {
+  return await StudentModel.find();
 };
 
-const getUserByEmail = async (email: string) => {
-  const admin = await AdminModel.findOne({ email }).exec();
-  const teacher = await TeacherModel.findOne({ email }).exec();
-  const student = await StudentModel.findOne({ email }).exec();
-  return admin || teacher || student;
+export const getTeacherById = async (id: string) => {
+  return await TeacherModel.findById(id);
 };
 
-export const UserServices = {
-  createAdmin,
-  createTeacher,
-  createStudent,
-  loginUser,
-  getAllAdmins,
-  getAllTeachers,
-  getAllStudents,
-  hashPassword,
-  comparePasswords,
-  generateToken,
-  getAllUsers,
-  getUserByEmail,
+export const getStudentById = async (id: string) => {
+  return await StudentModel.findById(id);
+};
+
+export const blockUser = async (id: string) => {
+  const user = await UserModel.findById(id);
+  if (!user) throw new Error("User not found");
+  user.isBlocked = true;
+  await user.save();
+  return user;
+};
+
+export const unblockUser = async (id: string) => {
+  const user = await UserModel.findById(id);
+  if (!user) throw new Error("User not found");
+  user.isBlocked = false;
+  await user.save();
+  return user;
 };

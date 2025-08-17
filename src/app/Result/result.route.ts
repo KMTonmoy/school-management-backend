@@ -1,6 +1,6 @@
 import express from "express";
 import { ResultController } from "./result.controller";
-import { auth, teacherOnly } from "./auth.middleware";
+import { adminOnly, auth, teacherOnly } from "./auth.middleware";
 
 const router = express.Router();
 
@@ -9,5 +9,13 @@ router.get("/student/:studentId", auth, ResultController.getStudentResults);
 router.get("/teacher", auth, teacherOnly, ResultController.getTeacherResults);
 router.patch("/results/:id", auth, teacherOnly, ResultController.updateResult);
 router.delete("/results/:id", auth, teacherOnly, ResultController.deleteResult);
+
+
+
+router.post("/admin", auth, adminOnly, ResultController.adminCreateResult);
+router.patch("/admin/:id", auth, adminOnly, ResultController.adminUpdateResult);
+router.delete("/admin/:id", auth, adminOnly, ResultController.adminDeleteResult);
+router.get("/all-results", ResultController.getAllResults);
+
 
 export const resultRouter = router;

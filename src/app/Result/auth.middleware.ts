@@ -32,9 +32,20 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-export const teacherOnly = (req: Request, res: Response, next: NextFunction) => {
+export const teacherOnly = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   if (req.user?.role !== "teacher") {
     return res.status(403).json({ error: "Teacher access required" });
+  }
+  next();
+};
+
+export const adminOnly = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Admin access required" });
   }
   next();
 };

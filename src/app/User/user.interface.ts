@@ -8,13 +8,11 @@ export type BaseUser = {
   updatedAt: Date;
 };
 
-// Admin Interface
 export type Admin = BaseUser & {
   role: "admin";
   accessLevel: "full" | "limited";
 };
 
-// Teacher Interface
 export type Teacher = BaseUser & {
   role: "teacher";
   subjects: string[];
@@ -22,7 +20,6 @@ export type Teacher = BaseUser & {
   qualification: string;
 };
 
-// Student Interface
 export type Student = BaseUser & {
   role: "student";
   class: string;

@@ -6,7 +6,7 @@ const resultSchema = new Schema<IResult>({
   teacher: { type: Schema.Types.ObjectId, ref: "User", required: true },
   subject: { type: String, required: true },
   marks: { type: Number, required: true, min: 0, max: 100 },
-  date: { type: Date, default: Date.now }
+  date: { type: Date, default: Date.now },
 });
 
 resultSchema.index({ student: 1, teacher: 1 });

@@ -1,9 +1,9 @@
 import cors from "cors";
 import express, { Application, Request, Response } from "express";
-import { UserRoutes } from "./app/User/user.route";
-import { AssignRoutes } from "./app/Assign/assign.route";
+ import { AssignRoutes } from "./app/Assign/assign.route";
 import { resultRouter } from "./app/Result/result.route";
 import { SMSRoute } from "./app/SMS/sms.route";
+import { UserRoutes } from "./app/User/user.route";
 
 const app: Application = express();
 
