@@ -23,10 +23,6 @@ interface IUser extends Document {
   comparePassword?(password: string): Promise<boolean>;
 }
 
-const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, SALT_ROUNDS);
-};
-
 const comparePasswords = async (
   inputPassword: string,
   hashedPassword: string
@@ -38,7 +34,7 @@ const generateToken = (
   userId: Types.ObjectId,
   role: "admin" | "teacher" | "student"
 ): string => {
-  return jwt.sign({ userId: userId.toString(), role }, JWT_SECRET, {
+  return jwt.sign({ id: userId.toString(), role }, JWT_SECRET, {
     expiresIn: "7d",
   });
 };
@@ -59,19 +55,18 @@ export const loginUser = async (email: string, password: string) => {
   if (!isMatch) throw new Error("Invalid credentials");
 
   const token = generateToken(user._id, user.role);
-  return { token, role: user.role, userId: user._id.toString() };
+  return { token, role: user.role, id: user._id.toString() };
 };
 
-export const createAdmin = async (
+export const createAdmin = async ( 
   name: string,
   email: string,
   password: string
 ) => {
-  const hashedPassword = await hashPassword(password);
   return await AdminModel.create({
     name,
     email,
-    password: hashedPassword,
+    password,
     role: "admin",
     accessLevel: "full",
   });
@@ -84,11 +79,10 @@ export const createTeacher = async (
   subjects: string[],
   qualification: string
 ) => {
-  const hashedPassword = await hashPassword(password);
   return await TeacherModel.create({
     name,
     email,
-    password: hashedPassword,
+    password,
     role: "teacher",
     subjects,
     qualification,
@@ -123,11 +117,10 @@ export const createStudent = async (
     secondaryContact?: string;
   }
 ) => {
-  const hashedPassword = await hashPassword(password);
   return await StudentModel.create({
     name,
     email,
-    password: hashedPassword,
+    password,
     role: "student",
     class: classId,
     rollNumber,
