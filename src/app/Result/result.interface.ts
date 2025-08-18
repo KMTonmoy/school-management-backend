@@ -17,3 +17,7 @@ export interface CreateResultDto {
 export interface BulkResultDto extends CreateResultDto {
   teacherId: string;
 }
+
+export interface AdminCreateResultDto extends BulkResultDto {
+  assignTeacher?: boolean;
+}

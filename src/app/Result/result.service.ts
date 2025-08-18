@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { CreateResultDto, BulkResultDto } from "./result.interface";
+import { BulkResultDto, AdminCreateResultDto } from "./result.interface";
 import { ResultModel } from "./result.model";
 import { AssignmentModel } from "../Assign/assign.model";
 
@@ -74,19 +74,48 @@ export const ResultService = {
     return await ResultModel.findByIdAndDelete(resultId);
   },
 
-  async adminCreateResult(data: CreateResultDto) {
-    return await new ResultModel({
+  async adminCreateResult(data: AdminCreateResultDto) {
+    if (data.teacherId && data.teacherId !== "admin") {
+      await AssignmentModel.findOneAndUpdate(
+        {
+          student: data.studentId,
+          teacher: data.teacherId,
+        },
+        {
+          student: data.studentId,
+          teacher: data.teacherId,
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    const result = await new ResultModel({
       student: data.studentId,
-      teacher: "admin",
+      teacher: data.teacherId || "admin",
       subject: data.subject,
       marks: data.marks,
     }).save();
+
+    return result.populate("student teacher", "name email");
   },
 
-  async adminUpdateResult(resultId: string, marks: number) {
+  async adminUpdateResult(resultId: string, data: any) {
+    if (data.teacherId) {
+      await AssignmentModel.findOneAndUpdate(
+        {
+          student: data.studentId,
+        },
+        {
+          teacher: data.teacherId,
+          student: data.studentId,
+        },
+        { upsert: true }
+      );
+    }
+
     return await ResultModel.findByIdAndUpdate(
       resultId,
-      { marks },
+      { ...data },
       { new: true }
     ).populate("student", "name email");
   },
@@ -97,6 +126,15 @@ export const ResultService = {
 
   async getAllResults() {
     return await ResultModel.find()
+      .populate("student", "name email")
+      .populate("teacher", "name email");
+  },
+
+  async getTeacherAllResults(teacherId: string) {
+    const assignments = await AssignmentModel.find({ teacher: teacherId });
+    const studentIds = assignments.map((a) => a.student);
+
+    return await ResultModel.find({ student: { $in: studentIds } })
       .populate("student", "name email")
       .populate("teacher", "name email");
   },

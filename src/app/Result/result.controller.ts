@@ -52,10 +52,17 @@ export const ResultController = {
   async adminUpdateResult(req: Request, res: Response) {
     const result = await ResultService.adminUpdateResult(
       req.params.id,
-      req.body.marks
+      req.body
     );
     if (!result) return res.status(404).json({ error: "Result not found" });
     res.json(result);
+  },
+
+  async getTeacherAllResults(req: Request, res: Response) {
+    if (!req.user)
+      return res.status(403).json({ error: "Authentication required" });
+    const results = await ResultService.getTeacherAllResults(req.user.id);
+    res.json(results);
   },
 
   async adminDeleteResult(req: Request, res: Response) {
